@@ -8,7 +8,7 @@ set "JAVA_TOOL_OPTIONS=%JAVA_TOOL_OPTIONS% -XX:MaxRAMPercentage=50.0"
 
 if not exist "%JAVA_HOME%\bin\java.exe" (
     echo JRE 8 not found at "%JAVA_HOME%"
-    choice /c YN /n /m "Download and install 64-bit Java 8 now? Hit the Y-key for 'Yes' or the N-key for 'No' and to exit."
+    choice /c YN /n /m "Download and install 64-bit Java 8 now? Press the Y-key for 'Yes' or the N-key to exit: "
 
     if errorlevel 2 exit /b 1
     if not errorlevel 1 exit /b 1
@@ -46,10 +46,53 @@ if not exist "%JAVA_HOME%\bin\java.exe" (
 
     echo Java 8 found. Continuing...
 )
-)
 
 cd /d "%~dp0"
 
-powershell.exe -NoExit -NoLogo -NoProfile -Command "& { Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] Starting launcher...' -f (Get-Date)); Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] Closing this window will close the launcher, but not your game client.' -f (Get-Date)); Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] If any errors occur, they will appear below.' -f (Get-Date)); & (Join-Path $env:JAVA_HOME 'bin\java.exe') '-jar' '.\BlissScape Launcher.jar' 2>&1 | ForEach-Object { '[{0:yyyy-MM-dd HH:mm:ss.fff}] {1}' -f (Get-Date), $_ };  $code = $LASTEXITCODE; Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] Launcher exited with code {1}' -f (Get-Date), $code) }"
+if not exist ".\BlissScape.jar" (
+    echo BlissScape.jar was not found in this folder.
+	echo If you've already downloaded the game, please make sure it is in the same location as this script.
+	echo If you haven't downloaded the game, we can do that next.
+    choice /c YN /n /m "Download BlissScape? Press the Y-key for 'Yes' or the N-key to exit: "
+
+    if errorlevel 2 exit /b 1
+    if not errorlevel 1 exit /b 1
+
+    powershell.exe -NoLogo -NoProfile -Command ^
+        "$ErrorActionPreference = 'Stop';" ^
+        "$ProgressPreference = 'SilentlyContinue';" ^
+        "$destination = Join-Path (Get-Location).Path 'BlissScape.jar';" ^
+        "$download = $destination + '.' + [guid]::NewGuid().ToString('N') + '.download';" ^
+        "try {" ^
+        "  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;" ^
+        "  Write-Host 'Downloading BlissScape...';" ^
+        "  Invoke-WebRequest -UseBasicParsing -Uri 'https://bliss2012.com/downloads/BlissScape.jar' -OutFile $download -TimeoutSec 300;" ^
+        "  Add-Type -AssemblyName System.IO.Compression.FileSystem;" ^
+        "  $jar = [System.IO.Compression.ZipFile]::OpenRead($download);" ^
+        "  try { if ($null -eq $jar.GetEntry('META-INF/MANIFEST.MF')) { throw 'The download is not a valid launcher JAR.' } } finally { $jar.Dispose() };" ^
+        "  Move-Item -LiteralPath $download -Destination $destination;" ^
+        "  Write-Host 'BlissScape download complete.';" ^
+        "} catch {" ^
+        "  Write-Host ('BlissScape download failed: ' + $_.Exception.Message) -ForegroundColor Red; exit 1;" ^
+        "} finally {" ^
+        "  Remove-Item -LiteralPath $download -Force -ErrorAction SilentlyContinue;" ^
+        "}; exit 0"
+
+    if errorlevel 1 (
+        echo The BlissScape download did not complete.
+        pause
+        exit /b 1
+    )
+
+    if not exist ".\BlissScape.jar" (
+        echo BlissScape.jar was not found after downloading.
+        pause
+        exit /b 1
+    )
+
+    echo BlissScape launcher found. Continuing...
+)
+
+powershell.exe -NoExit -NoLogo -NoProfile -Command "& { Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] Starting launcher...' -f (Get-Date)); Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] Closing this window will close the launcher, but not your game client.' -f (Get-Date)); Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] If any errors occur, they will appear below.' -f (Get-Date)); & (Join-Path $env:JAVA_HOME 'bin\java.exe') '-jar' '.\BlissScape.jar' 2>&1 | ForEach-Object { '[{0:yyyy-MM-dd HH:mm:ss.fff}] {1}' -f (Get-Date), $_ };  $code = $LASTEXITCODE; Write-Host ('[{0:yyyy-MM-dd HH:mm:ss.fff}] Launcher exited with code {1}' -f (Get-Date), $code) }"
 
 endlocal
